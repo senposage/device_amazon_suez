@@ -1,0 +1,25 @@
+diff --git a/services/sensorservice/SensorService.cpp b/services/sensorservice/SensorService.cpp
+index 3ca34bba1..53704bd89 100644
+--- a/services/sensorservice/SensorService.cpp
++++ b/services/sensorservice/SensorService.cpp
+@@ -51,6 +51,7 @@
+ #include "SensorRegistrationInfo.h"
+ 
+ #include <ctime>
++#include <errno.h>
+ #include <inttypes.h>
+ #include <math.h>
+ #include <sched.h>
+@@ -860,6 +861,12 @@ bool SensorService::threadLoop() {
+             if(count == DEAD_OBJECT && device.isReconnecting()) {
+                 device.reconnect();
+                 continue;
++            } else if (count == -EINTR || count == -ENOSYS) {
++                // The legacy MTK HIDL sensor HAL reports an interrupted poll
++                // as ENOSYS. A SIGQUIT used for an ANR trace must not make
++                // SensorService terminate system_server; retry the poll.
++                ALOGW("transient sensor poll failure (%s); retrying", strerror(-count));
++                continue;
+             } else {
+                 ALOGE("sensor poll failed (%s)", strerror(-count));
+                 break;

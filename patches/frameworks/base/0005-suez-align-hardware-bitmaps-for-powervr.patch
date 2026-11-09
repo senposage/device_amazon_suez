@@ -1,0 +1,44 @@
+diff --git a/libs/hwui/jni/BitmapFactory.cpp b/libs/hwui/jni/BitmapFactory.cpp
+index d4e27d81250..04803203dcb 100644
+--- a/libs/hwui/jni/BitmapFactory.cpp
++++ b/libs/hwui/jni/BitmapFactory.cpp
+@@ -312,6 +312,39 @@ static jobject doDecode(JNIEnv* env, std::unique_ptr<SkStreamRewindable> stream,
+         scaledHeight = static_cast<int>(scaledHeight * scale + 0.5f);
+     }
+ 
++    // The PowerVR Rogue gralloc implementation shipped with suez mishandles
++    // hardware bitmaps whose dimensions are not aligned to 32 pixels. The
++    // resulting invalid GL state aborts RenderThread while SystemUI or the
++    // launcher is decoding its first image resources. Keep the legacy device
++    // workaround here, before the scaling allocation, so the bitmap uploaded
++    // to the hardware buffer is aligned on both axes.
++    if (isHardware) {
++        constexpr int kHardwareBitmapAlignment = 32;
++        constexpr int kHalfHardwareBitmapAlignment = kHardwareBitmapAlignment / 2;
++
++        const int widthRemainder = scaledWidth % kHardwareBitmapAlignment;
++        const int heightRemainder = scaledHeight % kHardwareBitmapAlignment;
++        bool roundedWidthUp = false;
++
++        if (widthRemainder != 0) {
++            willScale = true;
++            if (widthRemainder >= kHalfHardwareBitmapAlignment) {
++                scaledWidth += kHardwareBitmapAlignment - widthRemainder;
++                roundedWidthUp = true;
++            } else {
++                scaledWidth -= widthRemainder;
++            }
++        }
++        if (heightRemainder != 0) {
++            willScale = true;
++            if (heightRemainder >= kHalfHardwareBitmapAlignment || roundedWidthUp) {
++                scaledHeight += kHardwareBitmapAlignment - heightRemainder;
++            } else {
++                scaledHeight -= heightRemainder;
++            }
++        }
++    }
++
+     android::Bitmap* reuseBitmap = nullptr;
+     unsigned int existingBufferSize = 0;
+     if (javaBitmap != nullptr) {
