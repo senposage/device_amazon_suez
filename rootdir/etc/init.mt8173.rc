@@ -70,15 +70,9 @@ on post-fs
     mkdir /cache/pstore_dump 0770 root root
     exec - root root -- /system/bin/sh -c "cp -a /sys/fs/pstore/. /cache/pstore_dump/ > /cache/pstore_dump.log 2>&1"
 
-    # klog_capture/logcat_capture (see their `service` definitions below) are
-    # NOT auto-started here anymore: boot is stable now (see
-    # suez-boot-regression memory), and both ran forever with a
-    # `sync; sleep 0.2` loop — 5 forced filesystem syncs/sec, permanently,
-    # plus unbounded log growth in /cache — which is real ongoing CPU/IO/
-    # flash-wear overhead with no benefit once boot isn't crash-looping.
-    # If investigating a future crash/bootloop, re-enable temporarily with
-    # `adb shell start klog_capture` / `start logcat_capture`, or add the
-    # `start` lines back here.
+    # Live /proc/kmsg and logcat capture was removed after the boot
+    # regression investigation. Those diagnostic services continuously
+    # forced filesystem syncs and grew unbounded files under /cache.
 
     # Allow writing to the kernel trace log.
     chmod 0222 /sys/kernel/debug/tracing/trace_marker
@@ -756,18 +750,6 @@ on property:vold.decrypt=trigger_shutdown_framework
 
 on property:dev.bootcomplete=1
     start audiofix
-
-service klog_capture /system/bin/sh -c "cat /proc/kmsg >> /cache/live_kmsg.log & while true; do sync; sleep 0.2; done"
-    class core
-    user root
-    group root
-    seclabel u:r:init:s0
-
-service logcat_capture /system/bin/sh -c "while ! logcat -v threadtime >> /cache/live_logcat.log 2>&1; do sleep 0.5; done & while true; do sync; sleep 0.2; done"
-    class core
-    user root
-    group root log
-    seclabel u:r:init:s0
 
 service kisd /vendor/bin/kisd
 	user root
