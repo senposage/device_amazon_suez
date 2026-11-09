@@ -28,4 +28,12 @@
          driver.
     -->
     <bool translatable="false" name="config_wifiSaeUpgradeEnabled">false</bool>
+
+    <!-- The MT6630 driver rejects the vendor private command issued by
+         ISupplicant::setSuspendModeEnabled(), reporting a misleading
+         "Out of memory" failure whenever the display sleeps or wakes. It
+         also leaves Wi-Fi suspend mode in an unknown state. Disable the
+         framework optimization on this legacy driver; this favors reliable
+         connectivity over the small idle-power benefit of Wi-Fi suspend. -->
+    <bool translatable="false" name="config_wifiSuspendOptimizationsEnabled">false</bool>
 </resources>
